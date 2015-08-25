@@ -7,10 +7,12 @@
 //
 
 import UIKit
+import RealmSwift
 
 class DetailViewController: UIViewController {
 
     @IBOutlet weak var detailDescriptionLabel: UILabel!
+    @IBOutlet weak var deleteAllButton: UIBarButtonItem!
 
 
     var detailItem: AnyObject? {
@@ -40,6 +42,12 @@ class DetailViewController: UIViewController {
         // Dispose of any resources that can be recreated.
     }
 
-
+    @IBAction func deleteAll(sender: AnyObject) {
+        let realm = Realm()
+        realm.write {
+            realm.deleteAll()
+        }
+        self.parentViewController?.navigationController?.popViewControllerAnimated(true)
+    }
 }
 
