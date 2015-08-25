@@ -7,13 +7,15 @@
 //
 
 import UIKit
+import RealmSwift
 
 class MasterViewController: UITableViewController {
 
     var detailViewController: DetailViewController? = nil
-    var objects = [AnyObject]()
-
-
+    var tasks : Results<Task>?
+    var token : NotificationToken?
+    let realm = Realm()
+    
     override func awakeFromNib() {
         super.awakeFromNib()
         if UIDevice.currentDevice().userInterfaceIdiom == .Pad {
@@ -33,27 +35,41 @@ class MasterViewController: UITableViewController {
             let controllers = split.viewControllers
             self.detailViewController = controllers[controllers.count-1].topViewController as? DetailViewController
         }
+        
+        let realm = Realm()
+        tasks = realm.objects(Task)
+        
+        token = realm.addNotificationBlock { notification, realm in
+            println("更新されたよ!")
+        }
     }
-
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
+        if token != nil {
+            realm.removeNotification(token!)
+        }
     }
 
     func insertNewObject(sender: AnyObject) {
-        objects.insert(NSDate(), atIndex: 0)
+        realm.write {
+            let newTask = Task(value: ["title": "aaa", "date" : NSDate()])
+            self.realm.add(newTask)
+        }
+        
         let indexPath = NSIndexPath(forRow: 0, inSection: 0)
         self.tableView.insertRowsAtIndexPaths([indexPath], withRowAnimation: .Automatic)
     }
 
     // MARK: - Segues
 
-    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
+    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {       
         if segue.identifier == "showDetail" {
             if let indexPath = self.tableView.indexPathForSelectedRow() {
-                let object = objects[indexPath.row] as! NSDate
+                let task = tasks![indexPath.row]
                 let controller = (segue.destinationViewController as! UINavigationController).topViewController as! DetailViewController
-                controller.detailItem = object
+                controller.detailItem = task
                 controller.navigationItem.leftBarButtonItem = self.splitViewController?.displayModeButtonItem()
                 controller.navigationItem.leftItemsSupplementBackButton = true
             }
@@ -67,14 +83,17 @@ class MasterViewController: UITableViewController {
     }
 
     override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return objects.count
+        if tasks == nil {
+            return 0
+        }
+        return tasks!.count
     }
 
     override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCellWithIdentifier("Cell", forIndexPath: indexPath) as! UITableViewCell
 
-        let object = objects[indexPath.row] as! NSDate
-        cell.textLabel!.text = object.description
+        let task = tasks![indexPath.row]
+        cell.textLabel!.text = task.title
         return cell
     }
 
@@ -85,7 +104,10 @@ class MasterViewController: UITableViewController {
 
     override func tableView(tableView: UITableView, commitEditingStyle editingStyle: UITableViewCellEditingStyle, forRowAtIndexPath indexPath: NSIndexPath) {
         if editingStyle == .Delete {
-            objects.removeAtIndex(indexPath.row)
+            let task = tasks![indexPath.row]
+            realm.write{
+                self.realm.delete(task)
+            }
             tableView.deleteRowsAtIndexPaths([indexPath], withRowAnimation: .Fade)
         } else if editingStyle == .Insert {
             // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view.
