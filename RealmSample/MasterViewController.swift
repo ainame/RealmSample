@@ -12,9 +12,9 @@ import RealmSwift
 class MasterViewController: UITableViewController {
 
     var detailViewController: DetailViewController? = nil
+    let realm = Realm()
     var tasks : Results<Task>?
     var token : NotificationToken?
-    let realm = Realm()
     
     override func awakeFromNib() {
         super.awakeFromNib()
@@ -36,9 +36,8 @@ class MasterViewController: UITableViewController {
             self.detailViewController = controllers[controllers.count-1].topViewController as? DetailViewController
         }
         
-        let realm = Realm()
-        tasks = realm.objects(Task)
-        
+        // 追加
+        tasks = realm.objects(Task).sorted("id", ascending: false)
         token = realm.addNotificationBlock { notification, realm in
             println("更新されたよ!")
         }
@@ -47,6 +46,7 @@ class MasterViewController: UITableViewController {
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
+        // 追加
         if token != nil {
             realm.removeNotification(token!)
         }
@@ -54,7 +54,7 @@ class MasterViewController: UITableViewController {
 
     func insertNewObject(sender: AnyObject) {
         realm.write {
-            let newTask = Task(value: ["title": "aaa", "date" : NSDate()])
+            let newTask = Task(value: ["id" : Task.nextId(), "title": "aaa", "date" : NSDate()])
             self.realm.add(newTask)
         }
         
@@ -83,17 +83,14 @@ class MasterViewController: UITableViewController {
     }
 
     override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        if tasks == nil {
-            return 0
-        }
-        return tasks!.count
+        return tasks?.count as Int!
     }
 
     override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCellWithIdentifier("Cell", forIndexPath: indexPath) as! UITableViewCell
 
         let task = tasks![indexPath.row]
-        cell.textLabel!.text = task.title
+        cell.textLabel!.text = "\(task.id.description), \(task.title), \(task.date.description)"
         return cell
     }
 
@@ -104,10 +101,13 @@ class MasterViewController: UITableViewController {
 
     override func tableView(tableView: UITableView, commitEditingStyle editingStyle: UITableViewCellEditingStyle, forRowAtIndexPath indexPath: NSIndexPath) {
         if editingStyle == .Delete {
+            
+            // 削除処理
             let task = tasks![indexPath.row]
             realm.write{
                 self.realm.delete(task)
             }
+            
             tableView.deleteRowsAtIndexPaths([indexPath], withRowAnimation: .Fade)
         } else if editingStyle == .Insert {
             // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view.
